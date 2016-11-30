@@ -48,6 +48,10 @@
 				return `https://api.telegram.org/bot${window.botId}/${method}`;
 			}
 
+			function getFileUrl(file_path){
+				return `https://api.telegram.org/file/bot${window.botId}/${file_path}`;
+			}
+
 			function checkBot(cb){
 				let url = getUrl("getMe");
 				fetch(url)
@@ -92,6 +96,22 @@
 					.catch(() => {})
 			}
 
+			function getFile(file_id, cb){
+				let url = getUrl("getFile");
+				url += "?"+$.param({file_id: file_id});
+				fetch(url)
+					.then((data) => {
+						if (data.status === 200) { 
+								return data.json();
+							}
+						return Promise.reject(data); 
+					})
+					.then((data) => {
+						cb(data);
+					})
+					.catch((data) => {})
+			}
+
 			function sendPhoto(chat_id, photo, caption=null, reply_to_message_id=null){
 				let url = getUrl("sendPhoto");
 				let param = {
@@ -109,15 +129,13 @@
 					headers: { "Content-type": "application/x-www-form-urlencoded; charset=UTF-8" },  
 					body: $.param(param)
 				})
-					.then(() => {
+					.then((data) => {
 						if (data.status === 200) { 
 								return data.json();
 							}
 						return Promise.reject(data); 
 					})
-					.then((data) => {
-						console.log(data);
-					})
+					.then((data) => {})
 					.catch(() => {})
 			}			
 
@@ -145,6 +163,12 @@
 								if (e.message.photo){
 									let max_photo = e.message.photo.reduce((p, c) => p.file_size < c.file_size ? c: p)
 									sendPhoto(e.message.chat.id, max_photo.file_id, e.message.caption, e.message.message_id);
+									let min_photo = e.message.photo.reduce((p, c) => p.file_size < c.file_size ? p: c)
+									getFile(max_photo.file_id, (data)=>{
+										let img = $("<img alt=''/>");
+										img.attr({"src": getFileUrl(data.result.file_path)});
+										$("#dataplace").append(img);
+									})
 								}
 							});
 
