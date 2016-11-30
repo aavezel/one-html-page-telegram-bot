@@ -8,17 +8,18 @@
 		<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap-theme.min.css" integrity="sha384-rHyoN1iRsVXV4nD0JutlnGaslCJuC7uwjduW9SVrLvRYooPp2bWYgmgJQIXwl/Sp" crossorigin="anonymous">
 		<style type="text/css">
 			body{padding-top:60px}
+			#dataplace code {padding-bottom: 5px; display: block;}			
 		</style>
 	</head>
 	<body>
 		<nav class="navbar navbar-inverse navbar-fixed-top">
 			<div class="container">
 				<div class="navbar-header">
-					<div class="navbar-brand" href="#">Html telegram bot</div>
+					<div class="navbar-brand" id="title">Html telegram bot</div>
 				</div>
 			</div>
 		</nav>
-		<div class="container">
+		<div class="container" id="getBotId">
 			<div class="panel panel-default">
 				<div class="panel-heading">
 					<h3 class="panel-title">Настройка</h3>
@@ -26,20 +27,114 @@
 				<div class="panel-body">
 					<form>
 						<div class="form-group">
-							<label for="exampleInputEmail1">bot-id</label>
-							<input type="email" class="form-control" id="botid" placeholder="bot-id">
+							<label for="botid">bot-id</label>
+							<input class="form-control" id="botid" placeholder="bot-id">
 						</div>
-						<button type="submit" id="setbotidbutton" class="btn btn-default">Установить</button>
+						<button id="setbotidbutton" class="btn btn-default">Установить</button>
 					</form>
 				</div>
 			</div>
+		</div>
+		<div class="container" id="dataplace">
 		</div>
 		
 		<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
 		<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
 		<script type="text/javascript">
+			window.botId = "";
+			window.update_offset = 0;
+
+			function getUrl(method){
+				return `https://api.telegram.org/bot${window.botId}/${method}`;
+			}
+
+			function checkBot(cb){
+				let url = getUrl("getMe");
+				fetch(url)
+					.then((data)=>{
+						if (data.status === 200) { 
+							return data.json();
+						}
+						return Promise.reject(data);
+					})
+					.then((data)=>{
+						$("#title").text(data.result.first_name);
+						cb();
+					})
+					.catch((data) => {
+						//console.error(data);
+					});
+			}
+
+			function sendMessage(chat_id, text, reply_to_message_id=null){
+				let url = getUrl("sendMessage");
+				let param = {
+					chat_id: chat_id,
+					text: text
+				}
+				if (reply_to_message_id) {
+					param["reply_to_message_id"] = reply_to_message_id;
+				}
+				fetch(url, {
+					method: 'post',
+					headers: { "Content-type": "application/x-www-form-urlencoded; charset=UTF-8" },  
+					body: $.param(param)
+				})
+					.then(() => {
+						if (data.status === 200) { 
+								return data.json();
+							}
+						return Promise.reject(data); 
+					})
+					.then((data) => {
+						console.log(data);
+					})
+					.catch(() => {})
+			}
+
+			function updateBot(){
+				let url = getUrl("getUpdates");
+				url += "?"+$.param({offset: window.update_offset});
+				fetch(url)
+					.then((data)=>{
+							if (data.status === 200) { 
+								return data.json();
+							}
+							return Promise.reject(data);
+						})
+					.then((data) => {
+						let result = data.result;
+						if (result.length > 0){
+							result.forEach((e) => {
+								let code = $("<code></code>");
+								code.text(JSON.stringify(e))
+								$("#dataplace").append(code);
+
+								if (e.message.text){
+									sendMessage(e.message.chat.id, e.message.text, e.message.message_id);
+								}
+							});
+
+							let upd_ids = data.result.map((e)=>e.update_id);
+							window.update_offset = Math.max.apply(Math, upd_ids)+1;
+						}
+						setTimeout(updateBot, 1000);
+					})
+					.catch((data) => {
+						setTimeout(updateBot, 5000);
+					});
+			}
+
 			$(() => {
-				
+				$("#setbotidbutton").click(()=>{
+					window.botId = $("#botid").val();
+					checkBot(() => {
+						$("#getBotId").hide();
+						$("#dataplace").show();
+						updateBot();
+					});
+					return false;
+				})
 			})
 		</script>
 	</body>
