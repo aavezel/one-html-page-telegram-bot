@@ -92,6 +92,35 @@
 					.catch(() => {})
 			}
 
+			function sendPhoto(chat_id, photo, caption=null, reply_to_message_id=null){
+				let url = getUrl("sendPhoto");
+				let param = {
+					chat_id: chat_id,
+					photo: photo
+				}
+				if (reply_to_message_id) {
+					param["reply_to_message_id"] = reply_to_message_id;
+				}
+				if (caption) {
+					param["caption"] = caption;
+				}
+				fetch(url, {
+					method: 'post',
+					headers: { "Content-type": "application/x-www-form-urlencoded; charset=UTF-8" },  
+					body: $.param(param)
+				})
+					.then(() => {
+						if (data.status === 200) { 
+								return data.json();
+							}
+						return Promise.reject(data); 
+					})
+					.then((data) => {
+						console.log(data);
+					})
+					.catch(() => {})
+			}			
+
 			function updateBot(){
 				let url = getUrl("getUpdates");
 				url += "?"+$.param({offset: window.update_offset});
@@ -112,6 +141,10 @@
 
 								if (e.message.text){
 									sendMessage(e.message.chat.id, e.message.text, e.message.message_id);
+								}
+								if (e.message.photo){
+									let max_photo = e.message.photo.reduce((p, c) => p.file_size < c.file_size ? c: p)
+									sendPhoto(e.message.chat.id, max_photo.file_id, e.message.caption, e.message.message_id);
 								}
 							});
 
